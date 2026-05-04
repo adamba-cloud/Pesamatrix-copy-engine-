@@ -1,7 +1,8 @@
 from database import cursor, conn
 from trading.copy_engine import copy_trade
-from telegram.alerts import send_alert
+from bot.alerts import send_alert   # ✅ FIXED IMPORT
 from datetime import datetime
+
 
 def execute_trade(symbol, side, entry, sl, tp):
 
@@ -14,14 +15,23 @@ def execute_trade(symbol, side, entry, sl, tp):
         "timestamp": str(datetime.now())
     }
 
-    cursor.execute("""
-        INSERT INTO trades (symbol, side, entry, sl, tp, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (symbol, side, entry, sl, tp, trade["timestamp"]))
+    try:
+        # Save trade to database
+        cursor.execute("""
+            INSERT INTO trades (symbol, side, entry, sl, tp, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (symbol, side, entry, sl, tp, trade["timestamp"]))
 
-    conn.commit()
+        conn.commit()
 
-    send_alert(trade)
-    copy_trade(trade)
+        # Send alert
+        send_alert(trade)
 
-    return {"status": "success", "trade": trade}
+        # Copy to users
+        copy_trade(trade)
+
+        return {"status": "success", "trade": trade}
+
+    except Exception as e:
+        print("Trade execution error:", e)
+        return {"status": "error", "message": str(e)}
